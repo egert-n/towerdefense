@@ -53,9 +53,6 @@ while run:
 
   screen.blit(map_image, (0, 0))
 
-  #draw enemy path
-  pg.draw.lines(screen, "grey0", False, waypoints)
-
   #update groups
   enemy_group.update()
 
