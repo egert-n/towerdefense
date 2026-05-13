@@ -38,8 +38,8 @@ Mäng lõppeb kas vastase võiduga (baasi murti sisse piisavalt palju kordi) võ
 
 Tiim "Paks Panter":
 
-  **Egert Nõulik** - üldine mängu programmeerimine,
+  **Egert Nõulik** - üldine mängu programmeerimine, tiimi juht
 
-  **Sebastian Tali** - mängu vastaste, turreti ja üldine art design ning heli
+  **Sebastian Tali** - mängu vastaste, turreti ja üldine art design ning heli, vastase kood (contributor)
 
 <img width="918" height="718" alt="39925886-450B-4128-BF77-F072069CC512" src="https://github.com/user-attachments/assets/333ec0ca-8895-4734-b0f1-59eb6240caee" />
