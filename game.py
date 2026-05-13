@@ -20,7 +20,7 @@ pg.display.set_caption("Tower Defence")
 # -----------------------------------------------------------------------
 try:
     pg.mixer.music.load("assets/audio/Aylex - 80s (freetouse.com).mp3")
-    pg.mixer.music.set_volume(0.4)
+    pg.mixer.music.set_volume(0.1)
     pg.mixer.music.play(-1)   # -1 = loop forever
 except pg.error as e:
     print(f"[BGM] Could not load music: {e}")

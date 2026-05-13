@@ -188,7 +188,7 @@ def tile_center(tile_x: int, tile_y: int):
 def load_turret_image() -> pg.Surface:
     """Load turret PNG or fall back to a procedurally generated placeholder."""
     try:
-        img = pg.image.load("assets/images/turrets/turret.png").convert_alpha()
+        img = pg.image.load("assets/images/turrets/pixil-frame-0.png").convert_alpha()
     except (pg.error, FileNotFoundError):
         img = _make_placeholder(40)
     return img

@@ -27,8 +27,8 @@ Mäng lõppeb kas vastase võiduga (lossi murti sisse) või mängija võiduga (k
 
 Tiim "Paks Panter":
 
-  **Egert Nõulik** - üldine mängu programmeerimine, heli
+  **Egert Nõulik** - üldine mängu programmeerimine,
 
-  **Sebastian Tali** - mängu vastased, art design
+  **Sebastian Tali** - mängu vastaste, turreti ja üldine art design ning heli
 
 <img width="720" height="720" alt="map" src="https://github.com/user-attachments/assets/6617780d-98cf-4295-8ed1-acfd9da8a8f9" />
