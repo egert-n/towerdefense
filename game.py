@@ -9,9 +9,21 @@ import constants as c
 # Init
 # -----------------------------------------------------------------------
 pg.init()
+pg.mixer.pre_init(frequency=44100, size=-16, channels=2, buffer=4096)
+pg.mixer.init()
 clock  = pg.time.Clock()
 screen = pg.display.set_mode((c.SCREEN_WIDTH, c.SCREEN_HEIGHT))
 pg.display.set_caption("Tower Defence")
+
+# -----------------------------------------------------------------------
+# BGM
+# -----------------------------------------------------------------------
+try:
+    pg.mixer.music.load("assets/audio/Aylex - 80s (freetouse.com).mp3")
+    pg.mixer.music.set_volume(0.4)
+    pg.mixer.music.play(-1)   # -1 = loop forever
+except pg.error as e:
+    print(f"[BGM] Could not load music: {e}")
 
 # -----------------------------------------------------------------------
 # Assets
@@ -107,13 +119,16 @@ SB_X    = c.MAP_WIDTH + 10
 BTN_W   = c.SIDEBAR_WIDTH - 20
 BTN_H   = 38
 BTN_GAP = 10
-_BY0    = 220
+_BY0    = 10   # buttons at the top
 
 btn_start   = Button(SB_X, _BY0,                      BTN_W, BTN_H, "Start Wave",              (30, 120, 200))
 btn_buy     = Button(SB_X, _BY0 + (BTN_H+BTN_GAP),   BTN_W, BTN_H, f"Buy Turret (${c.BUY_COST})", c.GREEN)
 btn_upgrade = Button(SB_X, _BY0 + (BTN_H+BTN_GAP)*2, BTN_W, BTN_H, "Upgrade",                 c.GOLD)
 btn_sell    = Button(SB_X, _BY0 + (BTN_H+BTN_GAP)*3, BTN_W, BTN_H, f"Sell (+${c.SELL_RETURN})", c.RED)
 buttons     = [btn_start, btn_buy, btn_upgrade, btn_sell]
+
+# y where header stats begin (just below the 4 buttons)
+_STATS_Y0 = _BY0 + (BTN_H + BTN_GAP) * 4 + 8
 
 
 # -----------------------------------------------------------------------
@@ -140,18 +155,41 @@ def draw_sidebar(surface):
     pg.draw.line(surface, c.WHITE, (c.MAP_WIDTH, 0), (c.MAP_WIDTH, c.SCREEN_HEIGHT), 2)
     cx = c.MAP_WIDTH + c.SIDEBAR_WIDTH // 2
 
-    # Header stats
+    # --- Buttons first (top of sidebar) ---
+    btn_start.enabled = not wave_in_progress and current_wave < c.MAX_WAVES and not game_over and not game_won
+    btn_start.text    = "Start Wave" if current_wave == 0 else f"Start Wave {current_wave+1}"
+
+    btn_upgrade.enabled = (
+        selected_turret is not None and selected_turret.alive()
+        and selected_turret.can_upgrade
+        and money >= selected_turret.upgrade_cost
+    )
+    btn_upgrade.text = (
+        f"Upgrade (${selected_turret.upgrade_cost})"
+        if selected_turret and selected_turret.can_upgrade else "Upgrade"
+    )
+    btn_sell.enabled = selected_turret is not None and selected_turret.alive()
+
+    for btn in buttons:
+        btn.draw(surface)
+
+    # Divider line
+    pg.draw.line(surface, c.GREY,
+                 (c.MAP_WIDTH + 5, _STATS_Y0 - 6),
+                 (c.MAP_WIDTH + c.SIDEBAR_WIDTH - 5, _STATS_Y0 - 6), 1)
+
+    # --- Header stats below buttons ---
     for y, text, col in [
-        (12, "TOWER DEFENCE",             c.WHITE),
-        (34, f"Wave  {current_wave} / {c.MAX_WAVES}", c.GOLD),
-        (56, f"Lives: {lives}",           c.GREEN if lives > 5 else c.RED),
-        (78, f"Money: ${money}",          c.GOLD),
+        (_STATS_Y0,      "TOWER DEFENCE",                        c.WHITE),
+        (_STATS_Y0 + 22, f"Wave  {current_wave} / {c.MAX_WAVES}", c.GOLD),
+        (_STATS_Y0 + 44, f"Lives: {lives}",                      c.GREEN if lives > 5 else c.RED),
+        (_STATS_Y0 + 66, f"Money: ${money}",                     c.GOLD),
     ]:
         s = font_title.render(text, True, col)
         surface.blit(s, (cx - s.get_width()//2, y))
 
     # Next wave preview (shown between waves)
-    info_y = 110
+    info_y = _STATS_Y0 + 96
     if not wave_in_progress and 0 < current_wave < c.MAX_WAVES:
         nw = current_wave + 1
         nh, nr, ns = wave_enemy_stats(nw)
@@ -188,24 +226,6 @@ def draw_sidebar(surface):
             s = font_normal.render(text, True, col)
             surface.blit(s, (SB_X, info_y))
             info_y += 16
-
-    # Button states
-    btn_start.enabled = not wave_in_progress and current_wave < c.MAX_WAVES and not game_over and not game_won
-    btn_start.text    = "Start Wave" if current_wave == 0 else f"Start Wave {current_wave+1}"
-
-    btn_upgrade.enabled = (
-        selected_turret is not None and selected_turret.alive()
-        and selected_turret.can_upgrade
-        and money >= selected_turret.upgrade_cost
-    )
-    btn_upgrade.text = (
-        f"Upgrade (${selected_turret.upgrade_cost})"
-        if selected_turret and selected_turret.can_upgrade else "Upgrade"
-    )
-    btn_sell.enabled = selected_turret is not None and selected_turret.alive()
-
-    for btn in buttons:
-        btn.draw(surface)
 
     hint = font_normal.render("ESC – cancel / deselect", True, c.GREY)
     surface.blit(hint, (SB_X, c.SCREEN_HEIGHT - 28))

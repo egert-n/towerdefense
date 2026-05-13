@@ -1,5 +1,6 @@
 import pygame as pg
 from pygame.math import Vector2
+import math
 import constants as c
 from bullet import Bullet
 
@@ -22,7 +23,7 @@ class Turret(pg.sprite.Sprite):
     Call update(enemy_group, bullet_group, money_ref) each frame.
     """
 
-    _images: dict = {}    # level -> Surface cache (shared across instances)
+    _images: dict = {}    # level -> original (unrotated) Surface cache
 
     def __init__(self, tile_x: int, tile_y: int, base_image: pg.Surface):
         super().__init__()
@@ -36,6 +37,7 @@ class Turret(pg.sprite.Sprite):
 
         self.level    = 1
         self.selected = False
+        self.angle    = 0  # current facing angle in degrees
 
         # Build per-level scaled images from the supplied base
         if not Turret._images:
@@ -94,27 +96,32 @@ class Turret(pg.sprite.Sprite):
     def upgrade(self):
         if self.can_upgrade:
             self.level += 1
-            self.image = Turret._images[self.level]
-            self.rect  = self.image.get_rect(center=(int(self.pos.x), int(self.pos.y)))
+            self._apply_rotation(self.angle)
             return True
         return False
 
     def update(self, enemy_group=None, bullet_group=None, money_ref=None):
-        """Find the nearest enemy in range and fire if cooldown is ready."""
+        """Rotate toward the best target; fire if cooldown is ready."""
         if enemy_group is None or bullet_group is None:
             return
 
-        now = pg.time.get_ticks()
-        if now - self._last_shot_ms < self.fire_rate:
-            return
-
         target = self._pick_target(enemy_group)
-        if target is None:
-            return
 
-        bullet = Bullet(self.pos, target, self.damage)
-        bullet_group.add(bullet)
-        self._last_shot_ms = now
+        # Always rotate toward the current target (smooth tracking)
+        if target is not None:
+            dx = target.pos.x - self.pos.x
+            dy = target.pos.y - self.pos.y
+            new_angle = math.degrees(math.atan2(-dy, dx))
+            if new_angle != self.angle:
+                self.angle = new_angle
+                self._apply_rotation(self.angle)
+
+            # Fire if cooldown elapsed
+            now = pg.time.get_ticks()
+            if now - self._last_shot_ms >= self.fire_rate:
+                bullet = Bullet(self.pos, target, self.damage)
+                bullet_group.add(bullet)
+                self._last_shot_ms = now
 
     def draw_range(self, surface):
         r = self.range
@@ -132,6 +139,12 @@ class Turret(pg.sprite.Sprite):
     # ------------------------------------------------------------------
     # Private
     # ------------------------------------------------------------------
+
+    def _apply_rotation(self, angle: float):
+        """Rotate the sprite image to face the given angle (degrees)."""
+        original = Turret._images[self.level]
+        self.image = pg.transform.rotate(original, angle)
+        self.rect  = self.image.get_rect(center=(int(self.pos.x), int(self.pos.y)))
 
     def _pick_target(self, enemy_group):
         """Return the enemy that has progressed furthest along the path

@@ -65,7 +65,8 @@ class Enemy(pg.sprite.Sprite):
     BAR_W = 36
     BAR_H = 5
     bx = int(self.pos.x) - BAR_W // 2
-    by = int(self.pos.y) - self.rect.height // 2 - 8
+    by = int(self.pos.y) - 28          # fixed offset, unaffected by rotation
     pg.draw.rect(surface, c.RED,   (bx, by, BAR_W, BAR_H))
     fill_w = int(BAR_W * max(self.hp / self.max_hp, 0))
     pg.draw.rect(surface, c.GREEN, (bx, by, fill_w, BAR_H))
+
