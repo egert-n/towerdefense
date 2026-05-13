@@ -1,6 +1,7 @@
 import pygame as pg
+import random
 from enemy import Enemy
-from turret import Turret, snap_to_tile, tile_center, load_turret_image
+from turret import Turret, snap_to_tile, tile_center, load_turret_images
 from bullet import Bullet
 from button import Button
 import constants as c
@@ -28,9 +29,31 @@ except pg.error as e:
 # -----------------------------------------------------------------------
 # Assets
 # -----------------------------------------------------------------------
-map_image    = pg.image.load("assets/images/levels/map.png").convert_alpha()
-enemy_image  = pg.image.load("assets/images/enemies/enemy_1.png").convert_alpha()
-turret_image = load_turret_image()
+map_image     = pg.image.load("assets/images/levels/map.png").convert_alpha()
+turret_images = load_turret_images()
+
+# -----------------------------------------------------------------------
+# Enemy type definitions
+# Each type: image, hp_mult, speed_mult, reward_mult, unlock_wave
+# -----------------------------------------------------------------------
+_e1   = pg.image.load("assets/images/enemies/enemy_1.png").convert_alpha()
+_e2   = pg.image.load("assets/images/enemies/enemy_2.png").convert_alpha()
+_ef   = pg.image.load("assets/images/enemies/enemy_fast.png").convert_alpha()
+_es   = pg.image.load("assets/images/enemies/enemy_slow.png").convert_alpha()
+_boss = pg.image.load("assets/images/enemies/enemy_boss.png").convert_alpha()
+
+ENEMY_TYPES = [
+    # (image,  hp_mult, speed_mult, reward_mult, unlock_wave, name)
+    (_e1,   1.0,  1.0,   1.0,  1,  "base_1"),
+    (_e2,   1.1,  1.0,   1.1,  1,  "base_2"),
+    (_ef,   0.45, 2.2,   0.9,  4,  "fast"),    # unlocks after wave 3
+    (_es,   2.8,  0.35,  1.8,  6,  "slow"),    # unlocks after wave 5
+]
+
+# Boss: spawns alone on the final wave — stats defined independently
+BOSS_HP          = 9000   # flat HP value
+BOSS_SPEED_MULT  = 0.28   # very slow
+BOSS_REWARD_MULT = 8.0    # big payout
 
 # -----------------------------------------------------------------------
 # Fonts
@@ -75,6 +98,8 @@ selected_turret = None
 game_over       = False
 game_won        = False
 lives           = 20
+fast_forward    = False   # when True, run at 2× speed
+boss_leaked     = False   # set True if the boss reaches the end
 
 # -----------------------------------------------------------------------
 # Wave state
@@ -106,7 +131,8 @@ def start_wave():
         return
     current_wave     += 1
     wave_in_progress  = True
-    enemies_to_spawn  = enemies_in_wave(current_wave)
+    # Boss wave: only 1 enemy spawns
+    enemies_to_spawn  = 1 if current_wave == c.MAX_WAVES else enemies_in_wave(current_wave)
     enemies_spawned   = 0
     last_spawn_ms     = pg.time.get_ticks()
     wave_break_timer  = 0
@@ -125,10 +151,11 @@ btn_start   = Button(SB_X, _BY0,                      BTN_W, BTN_H, "Start Wave"
 btn_buy     = Button(SB_X, _BY0 + (BTN_H+BTN_GAP),   BTN_W, BTN_H, f"Buy Turret (${c.BUY_COST})", c.GREEN)
 btn_upgrade = Button(SB_X, _BY0 + (BTN_H+BTN_GAP)*2, BTN_W, BTN_H, "Upgrade",                 c.GOLD)
 btn_sell    = Button(SB_X, _BY0 + (BTN_H+BTN_GAP)*3, BTN_W, BTN_H, f"Sell (+${c.SELL_RETURN})", c.RED)
-buttons     = [btn_start, btn_buy, btn_upgrade, btn_sell]
+btn_ff      = Button(SB_X, _BY0 + (BTN_H+BTN_GAP)*4, BTN_W, BTN_H, ">> Fast Forward",          (80, 60, 140))
+buttons     = [btn_start, btn_buy, btn_upgrade, btn_sell, btn_ff]
 
-# y where header stats begin (just below the 4 buttons)
-_STATS_Y0 = _BY0 + (BTN_H + BTN_GAP) * 4 + 8
+# y where header stats begin (just below the 5 buttons)
+_STATS_Y0 = _BY0 + (BTN_H + BTN_GAP) * 5 + 8
 
 
 # -----------------------------------------------------------------------
@@ -145,7 +172,7 @@ def tile_occupied(tx, ty):
 
 def get_turret_at(px, py):
     for t in turret_group:
-        if t.rect.collidepoint(px, py):
+        if t.hit_rect.collidepoint(px, py):
             return t
     return None
 
@@ -157,7 +184,13 @@ def draw_sidebar(surface):
 
     # --- Buttons first (top of sidebar) ---
     btn_start.enabled = not wave_in_progress and current_wave < c.MAX_WAVES and not game_over and not game_won
-    btn_start.text    = "Start Wave" if current_wave == 0 else f"Start Wave {current_wave+1}"
+    _next_wave = current_wave + 1
+    if current_wave == 0:
+        btn_start.text = "Start Wave"
+    elif _next_wave == c.MAX_WAVES:
+        btn_start.text = f"Start Wave {_next_wave}  [BOSS]"
+    else:
+        btn_start.text = f"Start Wave {min(_next_wave, c.MAX_WAVES)}"
 
     btn_upgrade.enabled = (
         selected_turret is not None and selected_turret.alive()
@@ -169,6 +202,7 @@ def draw_sidebar(surface):
         if selected_turret and selected_turret.can_upgrade else "Upgrade"
     )
     btn_sell.enabled = selected_turret is not None and selected_turret.alive()
+    btn_ff.text = "|| Normal Speed" if fast_forward else ">> Fast Forward"
 
     for btn in buttons:
         btn.draw(surface)
@@ -193,14 +227,30 @@ def draw_sidebar(surface):
     if not wave_in_progress and 0 < current_wave < c.MAX_WAVES:
         nw = current_wave + 1
         nh, nr, ns = wave_enemy_stats(nw)
-        preview = [
-            f"-- Wave {nw} preview --",
-            f"Enemies : {enemies_in_wave(nw)}",
-            f"HP      : {int(nh)}",
-            f"Reward  : ${nr} each",
-        ]
+        if nw == c.MAX_WAVES:
+            # Boss wave preview
+            preview = [
+                f"-- Wave {nw}: BOSS WAVE --",
+                f"Enemies : 1  (THE BOSS)",
+                f"Boss HP : {BOSS_HP}",
+                "WARNING: Defeat it or lose!",
+            ]
+            col = (255, 80, 80)
+        else:
+            unlocking = []
+            if nw == 4:  unlocking.append("FAST enemies!")
+            if nw == 6:  unlocking.append("SLOW enemies!")
+            preview = [
+                f"-- Wave {nw} preview --",
+                f"Enemies : {enemies_in_wave(nw)}",
+                f"Base HP : {int(nh)}",
+                f"Reward  : ${nr}+ each",
+            ]
+            if unlocking:
+                preview.append(f"NEW: {', '.join(unlocking)}")
+            col = (180, 220, 255)
         for line in preview:
-            s = font_normal.render(line, True, (180, 220, 255))
+            s = font_normal.render(line, True, col)
             surface.blit(s, (SB_X, info_y))
             info_y += 16
         info_y += 4
@@ -249,7 +299,7 @@ def draw_overlay(surface, text, sub=""):
 # -----------------------------------------------------------------------
 run = True
 while run:
-    dt  = clock.tick(c.FPS)
+    dt  = clock.tick(c.FPS * 2 if fast_forward else c.FPS)
     now = pg.time.get_ticks()
 
     # Sync money from mutable wrapper (Bullet.update adds reward money)
@@ -261,8 +311,23 @@ while run:
     if wave_in_progress and not game_over:
         if enemies_spawned < enemies_to_spawn:
             if now - last_spawn_ms >= c.SPAWN_INTERVAL_MS:
-                hp, reward, speed = wave_enemy_stats(current_wave)
-                enemy_group.add(Enemy(WAYPOINTS, enemy_image, hp, reward, speed))
+                base_hp, base_reward, base_speed = wave_enemy_stats(current_wave)
+                if current_wave == c.MAX_WAVES:
+                    # Boss wave — single powerful enemy
+                    hp     = BOSS_HP
+                    speed  = max(base_speed * BOSS_SPEED_MULT, 0.4)
+                    reward = max(1, int(base_reward * BOSS_REWARD_MULT))
+                    boss_enemy = Enemy(WAYPOINTS, _boss, hp, reward, speed)
+                    boss_enemy.is_boss = True
+                    enemy_group.add(boss_enemy)
+                else:
+                    available = [t for t in ENEMY_TYPES if t[4] <= current_wave]
+                    etype = random.choice(available)
+                    img, hp_m, spd_m, rwd_m, _unlock, _name = etype
+                    hp     = base_hp    * hp_m
+                    speed  = min(base_speed * spd_m, c.ENEMY_SPEED_CAP)
+                    reward = max(1, int(base_reward * rwd_m))
+                    enemy_group.add(Enemy(WAYPOINTS, img, hp, reward, speed))
                 enemies_spawned += 1
                 last_spawn_ms    = now
         elif len(enemy_group) == 0:
@@ -308,6 +373,9 @@ while run:
                 selected_turret.kill()
                 selected_turret = None
 
+            if btn_ff.handle_event(event):
+                fast_forward = not fast_forward
+
         if event.type == pg.MOUSEMOTION:
             for btn in buttons:
                 btn.handle_event(event)
@@ -318,7 +386,7 @@ while run:
                 if placing_turret:
                     tx, ty = snap_to_tile(mx, my)
                     if not tile_occupied(tx, ty):
-                        turret_group.add(Turret(tx, ty, turret_image))
+                        turret_group.add(Turret(tx, ty, turret_images))
                         money        -= c.BUY_COST
                         money_ref[0]  = money
                     placing_turret = False
@@ -339,10 +407,16 @@ while run:
         removed     = alive_before - alive_after
         for e in removed:
             if getattr(e, "leaked", False):
-                lives -= 1
-                if lives <= 0:
-                    lives     = 0
-                    game_over = True
+                if getattr(e, "is_boss", False):
+                    # Boss reached the end — instant fail
+                    boss_leaked = True
+                    lives       = 0
+                    game_over   = True
+                else:
+                    lives -= 1
+                    if lives <= 0:
+                        lives     = 0
+                        game_over = True
 
         # Turrets shoot
         for turret in turret_group:
@@ -369,11 +443,12 @@ while run:
         if is_on_map(mx, my):
             tx, ty = snap_to_tile(mx, my)
             cx, cy = tile_center(tx, ty)
-            ghost = turret_image.copy()
+            ghost = turret_images[1].copy()
             ghost.set_alpha(140)
             screen.blit(ghost, ghost.get_rect(center=(cx, cy)))
 
-    turret_group.draw(screen)
+    for t in turret_group:
+        t.draw_turret(screen)
     bullet_group.draw(screen)
     enemy_group.draw(screen)
 
@@ -383,7 +458,8 @@ while run:
     draw_sidebar(screen)
 
     if game_over:
-        draw_overlay(screen, "GAME OVER", "Close the window to exit")
+        sub = "The boss reached the end!" if boss_leaked else "Close the window to exit"
+        draw_overlay(screen, "GAME OVER", sub)
     elif game_won:
         draw_overlay(screen, "YOU WIN!", f"All {c.MAX_WAVES} waves cleared!")
 

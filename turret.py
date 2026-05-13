@@ -4,6 +4,26 @@ import math
 import constants as c
 from bullet import Bullet
 
+# -----------------------------------------------------------------------
+# Shoot sound (loaded once at module level)
+# -----------------------------------------------------------------------
+_shoot_sound = None
+try:
+    _shoot_sound = pg.mixer.Sound("assets/audio/freesound_community-shoot-6-81136.mp3")
+    _shoot_sound.set_volume(0.1)
+except Exception:
+    pass  # mixer not ready yet or file missing — will retry on first shot
+
+def _get_shoot_sound():
+    global _shoot_sound
+    if _shoot_sound is None:
+        try:
+            _shoot_sound = pg.mixer.Sound("assets/audio/freesound_community-shoot-6-81136.mp3")
+            _shoot_sound.set_volume(0.1)
+        except Exception:
+            pass
+    return _shoot_sound
+
 
 def _make_placeholder(size=40):
     """Create a simple grey circle turret image for when no PNG is available."""
@@ -23,9 +43,11 @@ class Turret(pg.sprite.Sprite):
     Call update(enemy_group, bullet_group, money_ref) each frame.
     """
 
-    _images: dict = {}    # level -> original (unrotated) Surface cache
+    _images: dict = {}         # level -> large VISUAL image (unrotated)
+    _hit_sizes    = {1: 32, 2: 38, 3: 44}    # hitbox size per level (px)
+    _visual_sizes = {1: 160, 2: 168, 3: 176} # visual size per level (px)
 
-    def __init__(self, tile_x: int, tile_y: int, base_image: pg.Surface):
+    def __init__(self, tile_x: int, tile_y: int, base_images: dict):
         super().__init__()
 
         self.tile_x = tile_x
@@ -39,15 +61,20 @@ class Turret(pg.sprite.Sprite):
         self.selected = False
         self.angle    = 0  # current facing angle in degrees
 
-        # Build per-level scaled images from the supplied base
-        if not Turret._images:
-            for lvl in range(1, 4):
-                size = 32 + (lvl - 1) * 6
-                scaled = pg.transform.smoothscale(base_image, (size, size))
-                Turret._images[lvl] = scaled
+        # Rebuild image cache using per-level source PNGs
+        Turret._images = {}
+        for lvl in range(1, 4):
+            size = Turret._visual_sizes[lvl]
+            Turret._images[lvl] = pg.transform.smoothscale(base_images[lvl], (size, size))
 
+        # self.image = visual image drawn on screen (rotated in _apply_rotation)
+        # self.hit_rect = small rect used for click / selection detection
         self.image = Turret._images[self.level]
         self.rect  = self.image.get_rect(center=(int(self.pos.x), int(self.pos.y)))
+
+        hs = Turret._hit_sizes[self.level]
+        self.hit_rect = pg.Rect(0, 0, hs, hs)
+        self.hit_rect.center = self.rect.center
 
         # Fire-rate timer (ms since last shot)
         self._last_shot_ms: int = 0
@@ -96,6 +123,9 @@ class Turret(pg.sprite.Sprite):
     def upgrade(self):
         if self.can_upgrade:
             self.level += 1
+            hs = Turret._hit_sizes[self.level]
+            self.hit_rect = pg.Rect(0, 0, hs, hs)
+            self.hit_rect.center = (int(self.pos.x), int(self.pos.y))
             self._apply_rotation(self.angle)
             return True
         return False
@@ -122,6 +152,25 @@ class Turret(pg.sprite.Sprite):
                 bullet = Bullet(self.pos, target, self.damage)
                 bullet_group.add(bullet)
                 self._last_shot_ms = now
+                snd = _get_shoot_sound()
+                if snd:
+                    snd.play()
+
+    def draw_turret(self, surface):
+        """Blit the visual image (self.image) centred on pos."""
+        surface.blit(self.image, self.rect)
+
+    def draw_selection(self, surface):
+        """Draw selection outline around the small hit_rect."""
+        pg.draw.rect(surface, c.WHITE, self.hit_rect.inflate(6, 6), width=2)
+        r = self.range
+        if r not in self._range_surf:
+            diam = r * 2
+            rs = pg.Surface((diam, diam), pg.SRCALPHA)
+            pg.draw.circle(rs, c.RANGE_COLOUR, (r, r), r)
+            self._range_surf[r] = rs
+        surf = self._range_surf[r]
+        surface.blit(surf, (int(self.pos.x) - r, int(self.pos.y) - r))
 
     def draw_range(self, surface):
         r = self.range
@@ -133,18 +182,16 @@ class Turret(pg.sprite.Sprite):
         surf = self._range_surf[r]
         surface.blit(surf, (int(self.pos.x) - r, int(self.pos.y) - r))
 
-    def draw_selection(self, surface):
-        pg.draw.rect(surface, c.WHITE, self.rect.inflate(6, 6), width=2)
-
     # ------------------------------------------------------------------
     # Private
     # ------------------------------------------------------------------
 
     def _apply_rotation(self, angle: float):
-        """Rotate the sprite image to face the given angle (degrees)."""
+        """Rotate self.image to face the given angle; keep hit_rect centred."""
         original = Turret._images[self.level]
         self.image = pg.transform.rotate(original, angle)
         self.rect  = self.image.get_rect(center=(int(self.pos.x), int(self.pos.y)))
+        self.hit_rect.center = self.rect.center
 
     def _pick_target(self, enemy_group):
         """Return the enemy that has progressed furthest along the path
@@ -185,10 +232,19 @@ def tile_center(tile_x: int, tile_y: int):
     )
 
 
+def load_turret_images() -> dict:
+    """Load one PNG per turret level. Falls back to placeholder if missing.
+    Returns {1: Surface, 2: Surface, 3: Surface}."""
+    images = {}
+    for lvl in range(1, 4):
+        path = f"assets/images/turrets/pixil-frame-{lvl - 1}.png"
+        try:
+            images[lvl] = pg.image.load(path).convert_alpha()
+        except (pg.error, FileNotFoundError):
+            images[lvl] = _make_placeholder(40)
+    return images
+
+
+# Keep old name as alias so existing code doesn't break
 def load_turret_image() -> pg.Surface:
-    """Load turret PNG or fall back to a procedurally generated placeholder."""
-    try:
-        img = pg.image.load("assets/images/turrets/pixil-frame-0.png").convert_alpha()
-    except (pg.error, FileNotFoundError):
-        img = _make_placeholder(40)
-    return img
+    return load_turret_images()[1]

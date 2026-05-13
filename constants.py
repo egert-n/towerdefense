@@ -19,25 +19,25 @@ TURRET_DATA = {
 
 # Economy
 BUY_COST     = 100
-SELL_RETURN  = 50
+SELL_RETURN  = 40
 STARTING_MONEY = 650
 
 # ---- Wave system -------------------------------------------------------
-MAX_WAVES               = 20
-ENEMIES_PER_WAVE_BASE   = 5     # enemies in wave 1
-ENEMIES_PER_WAVE_INC    = 2     # +2 per wave
-SPAWN_INTERVAL_MS       = 1400  # ms between individual spawns
-WAVE_BREAK_MS           = 4000  # ms break between waves
+MAX_WAVES               = 10
+ENEMIES_PER_WAVE_BASE   = 6     # enemies in wave 1
+ENEMIES_PER_WAVE_INC    = 3     # +3 per wave
+SPAWN_INTERVAL_MS       = 1200  # ms between individual spawns
+WAVE_BREAK_MS           = 3500  # ms break between waves
 
 # Enemy base stats (wave 1)
-ENEMY_BASE_HP     = 80
-ENEMY_BASE_REWARD = 15          # money earned per kill
+ENEMY_BASE_HP     = 100
+ENEMY_BASE_REWARD = 15         # money earned per kill (reduced)
 ENEMY_BASE_SPEED  = 2.0
 
 # Scaling factors applied each wave  (value *= 1 + SCALE * (wave-1))
-ENEMY_HP_SCALE     = 0.20   # +20 % HP per wave
-ENEMY_REWARD_SCALE = 0.12   # +12 % reward per wave
-ENEMY_SPEED_SCALE  = 0.04   # +4  % speed per wave (caps out quickly)
+ENEMY_HP_SCALE     = 0.3   # +30 % HP per wave
+ENEMY_REWARD_SCALE = 0.12   # +12  % reward per wave (slower reward growth)
+ENEMY_SPEED_SCALE  = 0.06   # +6  % speed per wave
 ENEMY_SPEED_CAP    = 4.5
 
 # ---- Bullet ------------------------------------------------------------
