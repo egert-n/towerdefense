@@ -1,12 +1,13 @@
 # TOWER DEFENSE
 
 ## Teema:
-Mängu teemaks on lossi ehk baasi kaitsmine (inglis k tower defence) keskajalises kontekstis.
-Mängu eesmärk on kaitsta baasi vastaste eest, koguda raha vastaste tapmisega ja ellu jääda kindla arvu tasemeni (nt tase 100ni).
+Mängu teemaks on baasi kaitsmine (inglis k tower defence) retroajalises kontekstis.
+
+Mängu eesmärk on kaitsta baasi vastaste eest, koguda raha vastaste tapmisega ja ellu jääda 10 tasemeni.
 
 ## Mängu reeglid:
 
-Mängija tohib paigutada keskkonda kaitsemehhanisme (turret’id, trap’id, võlurid jms)
+Mängija tohib paigutada keskkonda kaitsemehhanisme (turret'eid)
 
 Mängija ei tohi paigutada keskkonnast välja ühtegi kaitsemehhanismi
 
@@ -14,14 +15,20 @@ Mängija ei tohi kasutada rohkem raha kui tal hetke seisundil on
 
 ## Mängu tegelased / objektid:
 
-Mängija on lossi kuningas, tema vastasteks on zombie’d, rüütlid vms koletised, kes proovivad lossi sisse saada.
+Mängija on baasi juht, tema vastasteks on zombie’d jms koletised, kes proovivad baasi sisse saada.
 
-Mängija peab koguma raha vastaste tapmisega, et osta juurde rohkem kaitsemehhanisme
+Mängija peab koguma raha vastaste tapmisega, et osta juurde rohkem kaitsemehhanisme (turret'eid).
 
 ## Mängu takistused/väljakutse:
 
-Väljakutseks on konstantne vastase pealetungimine ja vastase arvu ja nende elutaseme suurenemine üleaja.
-Mäng lõppeb kas vastase võiduga (lossi murti sisse) või mängija võiduga (kõik vastased on surnud, tase 100 on saavutatud)
+Väljakutseks on konstantne vastase pealetungimine ja vastase arvu ja nende elutaseme suurenemine üleaja
+
+Mäng lõppeb kas vastase võiduga (baasi murti sisse piisavalt palju kordi) või mängija võiduga (kõik vastased on surnud, tase 10 on läbitud)
+
+4. ja 6. taseme peal hakkavad ilmnema vastavalt kiire, kuid vähe HP-ga vastane ja aeglane, kuid suure HP-ga vastane
+
+10. tase peal tuleb lõpu boss, kellel on suur HP kogus, aga on väga aeglane.
+
 
 ## Mängu loojad:
 
@@ -31,4 +38,4 @@ Tiim "Paks Panter":
 
   **Sebastian Tali** - mängu vastaste, turreti ja üldine art design ning heli
 
-<img width="720" height="720" alt="map" src="https://github.com/user-attachments/assets/6617780d-98cf-4295-8ed1-acfd9da8a8f9" />
+<img width="918" height="718" alt="39925886-450B-4128-BF77-F072069CC512" src="https://github.com/user-attachments/assets/333ec0ca-8895-4734-b0f1-59eb6240caee" />
