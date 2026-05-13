@@ -25,9 +25,13 @@ Väljakutseks on konstantne vastase pealetungimine ja vastase arvu ja nende elut
 
 Mäng lõppeb kas vastase võiduga (baasi murti sisse piisavalt palju kordi) või mängija võiduga (kõik vastased on surnud, tase 10 on läbitud)
 
-4. ja 6. taseme peal hakkavad ilmnema vastavalt kiire, kuid vähe HP-ga vastane ja aeglane, kuid suure HP-ga vastane
+### Vastased:
 
-10. tase peal tuleb lõpu boss, kellel on suur HP kogus, aga on väga aeglane.
+ Algusest peale ilmnevad zombie'd, kes on mängu baas vastaseks
+
+ 4nda ja 6nda taseme peal hakkavad ilmnema vastavalt kiire, kuid vähe HP-ga vastane ja aeglane, kuid suure HP-ga vastane
+
+ 10nda taseme peal tuleb lõpu boss, kellel on suur HP kogus, aga on väga aeglane.
 
 
 ## Mängu loojad:
